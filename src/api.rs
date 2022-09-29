@@ -162,7 +162,7 @@ impl<'a> Seca {
     /// # Errors
     /// this can return either [`crate::Error::ReqwestError`] if an error occoured in reqwest,
     /// or [`crate::Error::SerdeJsonError`] if an error occurred when serializing/deserializing the response
-    pub fn get_stats(&self, auth_ticket: String, beta: bool) -> Result<Stats, crate::Error> {
+    pub fn get_stats(&self, auth_ticket: &str, beta: bool) -> Result<Stats, crate::Error> {
         let url = String::from("/api/statRequest");
         let response = self.generic_request(
             &url,
