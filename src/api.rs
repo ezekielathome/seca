@@ -124,10 +124,13 @@ impl Seca {
             .body(serde_json::to_string(&body)?);
 
         let outer = req.send()?.json::<SecaReponseOuter>()?;
-        match serde_json::from_str(&outer.response)? {
-            SecaResponse::Ok { data, .. } => Ok(data),
-            SecaResponse::NotFound { .. } => Err(crate::Error::SecaNotFound()),
-            SecaResponse::InvalidSteam { .. } => Err(crate::Error::SecaInvalidSteam()),
+        match serde_json::from_str(&outer.response) {
+            Ok(resp) => match resp {
+                SecaResponse::Ok { data, .. } => Ok(data),
+                SecaResponse::NotFound { .. } => Err(crate::Error::SecaNotFound()),
+                SecaResponse::InvalidSteam { .. } => Err(crate::Error::SecaInvalidSteam()),
+            },
+            Err(e) => Err(crate::Error::SecaGenericError(e)),
         }
     }
 

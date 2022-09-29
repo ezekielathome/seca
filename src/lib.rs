@@ -15,10 +15,14 @@ pub enum Error {
     /// An error occurred when parsing a URL
     #[error("error when parsing URL: {0}")]
     UrlParseError(#[from] url::ParseError),
+
     /// Typically occurs if the request is missing information or api key is wrong
     #[error("not found")]
     SecaNotFound(),
     /// The provided encrypted app ticket is invalid
     #[error("invalid encrypted app ticket")]
     SecaInvalidSteam(),
+    /// Unknown seca error
+    #[error("Unknown seca error: {0}")]
+    SecaGenericError(serde_json::Error),
 }
