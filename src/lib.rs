@@ -23,6 +23,6 @@ pub enum Error {
     #[error("invalid encrypted app ticket")]
     SecaInvalidSteam(),
     /// Unknown seca error
-    #[error("Unknown seca error: {0}")]
+    #[error("unknown seca error: {0}")]
     SecaGenericError(serde_json::Error),
 }
