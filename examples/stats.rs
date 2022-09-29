@@ -7,7 +7,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // you can acquire one by
     // A: calling RequestEncryptedAppTicket with data '=<username>' (then calling GetEncryptedAppTicket in callback)
     // B: monitoring game traffic through something like fiddler
-    let stats = seca.get_stats("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx".to_string(), true)?;
+    let stats = seca.get_stats("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", true)?;
     println!("{:#?}", stats);
     Ok(())
 }
