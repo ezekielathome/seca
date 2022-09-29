@@ -15,7 +15,10 @@ pub enum Error {
     /// An error occurred when parsing a URL
     #[error("error when parsing URL: {0}")]
     UrlParseError(#[from] url::ParseError),
-    /// Generic SECA error, typically occurs if api key or auth ticket is wrong.
+    /// Typically occurs if the request is missing information or api key is wrong
     #[error("not found")]
     SecaNotFound(),
+    /// The provided encrypted app ticket is invalid
+    #[error("invalid encrypted app ticket")]
+    SecaInvalidSteam(),
 }

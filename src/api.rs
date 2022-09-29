@@ -26,9 +26,11 @@ pub struct Server {
 #[serde(tag = "status")]
 pub enum SecaResponse {
     #[serde(rename = "ok")]
-    Ok { data: String, af: u64 },
+    Ok { data: String },
     #[serde(rename = "NOT_FOUND")]
-    NotFound { af: u64 },
+    NotFound {},
+    #[serde(rename = "INVALID_STEAM")]
+    InvalidSteam {},
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -125,6 +127,7 @@ impl Seca {
         match serde_json::from_str(&outer.response)? {
             SecaResponse::Ok { data, .. } => Ok(data),
             SecaResponse::NotFound { .. } => Err(crate::Error::SecaNotFound()),
+            SecaResponse::InvalidSteam { .. } => Err(crate::Error::SecaInvalidSteam()),
         }
     }
 
