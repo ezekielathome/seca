@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use reqwest::{blocking::Client, Url};
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
 use crate::stats::Stats;
 
@@ -42,24 +45,25 @@ struct SecaReponseOuter {
 
 /// Generic SECA post request
 #[derive(Debug, Serialize, Deserialize)]
-struct SecaRequest {
+#[serde(bound(deserialize = "'de: 'a"))]
+struct SecaRequest<'a> {
     #[serde(rename = "apikey")]
     api_key: String,
-    #[serde(rename = "authTicket")]
-    auth_ticket: String,
-    attach: bool,
-    first: bool,
     v: i32,
+
+    #[serde(flatten)]
+    extra: Option<HashMap<&'a str, Value>>,
 }
 
-impl SecaRequest {
-    pub fn new(api_key: String, v: i32, attach: bool, auth_ticket: Option<String>) -> Self {
+impl<'a> SecaRequest<'a> {
+    pub fn new<T>(api_key: String, v: i32, extra: T) -> Self
+    where
+        T: Into<Option<HashMap<&'a str, Value>>>,
+    {
         Self {
             api_key,
-            auth_ticket: auth_ticket.unwrap_or_default(),
-            attach,
-            first: true,
             v,
+            extra: extra.into(),
         }
     }
 }
@@ -75,7 +79,7 @@ pub struct Seca {
     api_key: String,
 }
 
-impl Seca {
+impl<'a> Seca {
     /// Create a Seca object from url and api key
     ///
     /// # Errors
@@ -106,17 +110,12 @@ impl Seca {
     /// # Errors
     /// this can return either [`crate::Error::ReqwestError`] if an error occoured in reqwest,
     /// or [`crate::Error::SerdeJsonError`] if an error occurred when serializing/deserializing the response
-    pub fn generic_request<T>(
-        &self,
-        endpoint: &str,
-        beta: bool,
-        api_key: T,
-    ) -> Result<String, crate::Error>
+    pub fn generic_request<T>(&self, endpoint: &str, custom: T) -> Result<String, crate::Error>
     where
-        T: Into<Option<String>>,
+        T: Into<Option<HashMap<&'a str, Value>>>,
     {
         let url = self.base.join(endpoint)?;
-        let body = SecaRequest::new(self.api_key.clone(), 2, beta, api_key.into());
+        let body = SecaRequest::new(self.api_key.clone(), 2, custom.into());
         let req = self
             .client
             .post(url)
@@ -141,7 +140,7 @@ impl Seca {
     /// or [`crate::Error::SerdeJsonError`] if an error occurred when serializing/deserializing the response
     pub fn get_server_list(&self) -> Result<Vec<Server>, crate::Error> {
         let url = String::from("/match/list");
-        let response = self.generic_request(&url, false, None)?;
+        let response = self.generic_request(&url, None)?;
 
         Ok(serde_json::from_str::<Vec<Server>>(&response)?)
     }
@@ -153,7 +152,7 @@ impl Seca {
     /// or [`crate::Error::SerdeJsonError`] if an error occurred when serializing/deserializing the response
     pub fn get_beta_server_list(&self) -> Result<Vec<Server>, crate::Error> {
         let url = String::from("/match/listbeta");
-        let response = self.generic_request(&url, false, None)?;
+        let response = self.generic_request(&url, None)?;
 
         Ok(serde_json::from_str::<Vec<Server>>(&response)?)
     }
@@ -165,7 +164,14 @@ impl Seca {
     /// or [`crate::Error::SerdeJsonError`] if an error occurred when serializing/deserializing the response
     pub fn get_stats(&self, auth_ticket: String, beta: bool) -> Result<Stats, crate::Error> {
         let url = String::from("/api/statRequest");
-        let response = self.generic_request(&url, beta, auth_ticket)?;
+        let response = self.generic_request(
+            &url,
+            HashMap::from([
+                ("attach", json!(beta)),
+                ("first", json!(true)),
+                ("authTicket", json!(auth_ticket)),
+            ]),
+        )?;
 
         Ok(serde_json::from_str::<Stats>(&response)?)
     }
