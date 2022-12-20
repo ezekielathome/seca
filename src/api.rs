@@ -2,45 +2,78 @@ use std::collections::HashMap;
 
 use reqwest::{blocking::Client, Url};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 
-use crate::stats::Stats;
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(from="String")]
+pub enum ServerGamemode {
+    Breakthrough,
+    ControlShift,
+    CaptureTheFlag,
+    Escort,
+    Unknown(String),
+}
+
+impl From<String> for ServerGamemode {
+    fn from(input: String) -> Self {
+        match input.as_str() {
+            "brk" => ServerGamemode::Breakthrough,
+            "cs" => ServerGamemode::ControlShift,
+            "ctf" => ServerGamemode::CaptureTheFlag,
+            "esc" => ServerGamemode::Escort,
+            _ => ServerGamemode::Unknown(input),
+        }
+    }
+}
+
+/// Server Lobby information (might be incomplete!!!)
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ServerLobby {
+    /// Allowed gamemodes
+    pub gamemodes: Vec<ServerGamemode>,
+    /// Allowed maps
+    pub maps: Vec<String>,
+    /// Max level allowed
+    pub max_level: i32,
+    /// Server region
+    pub region: String,
+    /// Are spectators allowed?
+    pub spectators_allowed: bool,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Server {
-    pub key: String,
+    pub attach: bool,
+    pub gm: ServerGamemode,
     #[serde(rename = "IP")]
     pub ip: String,
-    pub gm: String,
+    pub key: String,
     pub map: String,
-    /// not available in listbeta because of localization
-    pub name: Option<String>,
+    pub name: String,
+    pub number: i32,
+    pub region: i32,
+    pub time: i32,
     #[serde(rename = "v")]
     pub version: String,
-    /// not available in list, but is in listbeta
-    pub attach: Option<bool>,
-    pub region: Option<i32>,
-    pub time: i32,
-    pub bots: Option<i32>,
+    /// Players are not included in the data if there are none.
     pub players: Option<i32>,
+    /// Bots are not included in the data if there are none.
+    pub bots: Option<i32>,
+    /// unsure of what this actually is... seems to be not included, 1, or 2.
+    pub po: Option<i32>,
+    /// Lobby information if the server has been hijacked for a private lobby.
+    pub lobby: Option<ServerLobby>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "status")]
-pub enum SecaResponse {
+enum SecaResponse {
     #[serde(rename = "ok")]
-    Ok { data: String },
+    Ok { data: Value },
     #[serde(rename = "NOT_FOUND")]
     NotFound {},
     #[serde(rename = "INVALID_STEAM")]
     InvalidSteam {},
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct SecaReponseOuter {
-    /// String of JSON that contains SECA's response
-    response: String,
-    activation: String,
 }
 
 /// Generic SECA post request
@@ -110,20 +143,19 @@ impl<'a> Seca {
     /// # Errors
     /// this can return either [`crate::Error::ReqwestError`] if an error occoured in reqwest,
     /// or [`crate::Error::SerdeJsonError`] if an error occurred when serializing/deserializing the response
-    pub fn generic_request<T>(&self, endpoint: &str, custom: T) -> Result<String, crate::Error>
+    pub fn generic_request<T>(&self, endpoint: &str, custom: T) -> Result<Value, crate::Error>
     where
         T: Into<Option<HashMap<&'a str, Value>>>,
     {
         let url = self.base.join(endpoint)?;
-        let body = SecaRequest::new(self.api_key.clone(), 2, custom.into());
+        let body = SecaRequest::new(self.api_key.clone(), 3, custom.into());
         let req = self
             .client
             .post(url)
             .header("Content-Type", "application/json; charset=utf-8")
             .body(serde_json::to_string(&body)?);
 
-        let outer = req.send()?.json::<SecaReponseOuter>()?;
-        match serde_json::from_str(&outer.response) {
+        match serde_json::from_str::<SecaResponse>(&req.send()?.text()?) {
             Ok(resp) => match resp {
                 SecaResponse::Ok { data, .. } => Ok(data),
                 SecaResponse::NotFound { .. } => Err(crate::Error::SecaNotFound()),
@@ -133,46 +165,15 @@ impl<'a> Seca {
         }
     }
 
-    /// /match/list
-    ///
-    /// # Errors
-    /// this can return either [`crate::Error::ReqwestError`] if an error occoured in reqwest,
-    /// or [`crate::Error::SerdeJsonError`] if an error occurred when serializing/deserializing the response
-    pub fn get_server_list(&self) -> Result<Vec<Server>, crate::Error> {
-        let url = String::from("/match/list");
-        let response = self.generic_request(&url, None)?;
-
-        Ok(serde_json::from_str::<Vec<Server>>(&response)?)
-    }
-
     /// /match/listbeta
     ///
     /// # Errors
     /// this can return either [`crate::Error::ReqwestError`] if an error occoured in reqwest,
     /// or [`crate::Error::SerdeJsonError`] if an error occurred when serializing/deserializing the response
-    pub fn get_beta_server_list(&self) -> Result<Vec<Server>, crate::Error> {
+    pub fn get_server_list(&self) -> Result<Vec<Server>, crate::Error> {
         let url = String::from("/match/listbeta");
         let response = self.generic_request(&url, None)?;
 
-        Ok(serde_json::from_str::<Vec<Server>>(&response)?)
-    }
-
-    /// /api/statRequest
-    ///
-    /// # Errors
-    /// this can return either [`crate::Error::ReqwestError`] if an error occoured in reqwest,
-    /// or [`crate::Error::SerdeJsonError`] if an error occurred when serializing/deserializing the response
-    pub fn get_stats(&self, auth_ticket: &str, beta: bool) -> Result<Stats, crate::Error> {
-        let url = String::from("/api/statRequest");
-        let response = self.generic_request(
-            &url,
-            HashMap::from([
-                ("attach", json!(beta)),
-                ("first", json!(true)),
-                ("authTicket", json!(auth_ticket)),
-            ]),
-        )?;
-
-        Ok(serde_json::from_str::<Stats>(&response)?)
+        Ok(serde_json::from_value::<Vec<Server>>(response)?)
     }
 }

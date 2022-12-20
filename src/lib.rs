@@ -1,5 +1,4 @@
 pub mod api;
-pub mod stats;
 
 use thiserror::Error;
 

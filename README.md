@@ -7,5 +7,4 @@ this is by no means the complete api, as it isn't documented.
 implemented endpoints
 - /match/list
 - /match/listbeta
-- /api/statRequest
 ```
