@@ -114,9 +114,6 @@ pub struct Seca {
 
 impl<'a> Seca {
     /// Create a Seca object from url and api key
-    ///
-    /// # Errors
-    /// This will return [`crate::Error::UrlParseError`] if parsing the url fails.
     pub fn new(url: &str, api_key: &str) -> Result<Self, crate::Error> {
         let client = Client::new();
 
@@ -127,10 +124,7 @@ impl<'a> Seca {
         })
     }
 
-    /// Create a Seca object for the official SECA instance¨
-    ///
-    /// # Errors
-    /// This will return [`crate::Error::UrlParseError`] if parsing the url fails.
+    /// Create a Seca object for the official SECA instance
     pub fn from_official() -> Result<Self, crate::Error> {
         Self::new(
             "https://seca.sectorsedge.com/",
@@ -139,10 +133,6 @@ impl<'a> Seca {
     }
 
     /// Generic function for requesting an endpoint
-    ///
-    /// # Errors
-    /// this can return either [`crate::Error::ReqwestError`] if an error occoured in reqwest,
-    /// or [`crate::Error::SerdeJsonError`] if an error occurred when serializing/deserializing the response
     pub fn generic_request<T>(&self, endpoint: &str, custom: T) -> Result<Value, crate::Error>
     where
         T: Into<Option<HashMap<&'a str, Value>>>,
@@ -166,10 +156,6 @@ impl<'a> Seca {
     }
 
     /// /match/listbeta
-    ///
-    /// # Errors
-    /// this can return either [`crate::Error::ReqwestError`] if an error occoured in reqwest,
-    /// or [`crate::Error::SerdeJsonError`] if an error occurred when serializing/deserializing the response
     pub fn get_server_list(&self) -> Result<Vec<Server>, crate::Error> {
         let url = String::from("/match/listbeta");
         let response = self.generic_request(&url, None)?;
